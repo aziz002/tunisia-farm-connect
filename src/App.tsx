@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Marketplace from "./pages/Marketplace";
 import MyPlugins from "./pages/MyPlugins";
 import Livestock from "./pages/Livestock";
+import SmartIrrigation from "./pages/SmartIrrigation";
 import MarketplaceSeller from "./pages/MarketplaceSeller";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/my-plugins" element={<MyPlugins />} />
+          <Route path="/smart-irrigation" element={<SmartIrrigation />} />
           <Route path="/livestock" element={<Livestock />} />
           <Route path="/marketplace-seller" element={<MarketplaceSeller />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
