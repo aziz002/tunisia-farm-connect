@@ -9,7 +9,7 @@ import { Api } from '@/lib/api';
 import { mockAssistant } from '@/lib/aiAssistant';
 import { builtInModules } from '@/lib/plugins';
 import { useNavigate } from 'react-router-dom';
-import { useUIStore } from '@/hooks/useStore';
+import { useSettingsStore, useUIStore } from '@/hooks/useStore';
 
 type Msg = { role: 'user' | 'assistant'; text: string };
 
@@ -24,6 +24,7 @@ export default function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const { dispatchAction } = useUIStore();
+  const { setTheme, setLang } = useSettingsStore();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -62,7 +63,19 @@ export default function AIAssistant() {
         return;
       }
 
-      if (lc.includes('summarize') || lc.includes('summary')) {
+      if (lc.includes('toggle theme') || lc.includes('dark mode') || lc.includes('light mode')) {
+        const makeDark = lc.includes('dark');
+        setTheme(makeDark ? 'dark' : 'light');
+        reply = `Switched theme to ${makeDark ? 'dark' : 'light'} mode.`;
+      } else if (lc.includes('language') || lc.includes('arabic') || lc.includes('english')) {
+        const toAr = lc.includes('arabic') || lc.includes('ar');
+        setLang(toAr ? 'ar' : 'en');
+        reply = `Language set to ${toAr ? 'العربية' : 'English'}.`;
+      } else if (lc.includes('schedule') && (lc.includes('edit') || lc.includes('editor') || lc.includes('open'))) {
+        reply = 'Opening the schedule editor…';
+        navigate('/smart-irrigation');
+        setTimeout(() => dispatchAction('openScheduleEditor'), 50);
+      } else if (lc.includes('summarize') || lc.includes('summary')) {
         reply = await mockAssistant.summarizeFarmData(metrics);
       } else if (lc.includes('recommend')) {
         const modules = builtInModules.map(({ component, ...meta }) => meta);
@@ -85,10 +98,11 @@ export default function AIAssistant() {
         reply += '\n\nAgentic mode: I can draft actions (e.g., enable modules, propose irrigation schedule). Confirm to apply.';
       }
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
       setMessages((m) => [
         ...m,
-        { role: 'assistant', text: `I hit an issue reading tools: ${err?.message ?? 'Unknown error'}` },
+        { role: 'assistant', text: `I hit an issue reading tools: ${message}` },
       ]);
     } finally {
       setBusy(false);

@@ -16,6 +16,8 @@ interface UIState {
 interface PluginState {
   enabledModules: Record<string, boolean>;
   setModuleEnabled: (id: string, enabled: boolean) => void;
+  pinnedModules: Record<string, boolean>;
+  togglePinned: (id: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -31,6 +33,13 @@ export const useUIStore = create<UIState>((set) => ({
 export const usePluginStore = create<PluginState>((set) => ({
   enabledModules: {},
   setModuleEnabled: (id, enabled) => set((s) => ({ enabledModules: { ...s.enabledModules, [id]: enabled } })),
+  pinnedModules: (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('fh_pins') || '{}')) || {},
+  togglePinned: (id) =>
+    set((s) => {
+      const next = { ...s.pinnedModules, [id]: !s.pinnedModules[id] };
+      if (typeof window !== 'undefined') localStorage.setItem('fh_pins', JSON.stringify(next));
+      return { pinnedModules: next };
+    }),
 }));
 
 // App settings: theme and language

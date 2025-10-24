@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, TrendingUp, Package, Eye } from 'lucide-react';
+import { Plus, TrendingUp, Package, Eye, Phone, Mail, ExternalLink } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const MarketplaceSeller = () => {
   const listings = [
@@ -113,32 +114,79 @@ const MarketplaceSeller = () => {
           </CardContent>
         </Card>
 
-        {/* Buyer Contacts Section */}
+        {/* Crops by Market */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Recent Buyer Inquiries</CardTitle>
-            <CardDescription>Connect with interested buyers</CardDescription>
+            <CardTitle>Crops by Market</CardTitle>
+            <CardDescription>Where your products are available this week</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Market</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead className="text-right">Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[
+                  { market: 'Souk El Jumaa', city: 'Sousse', product: 'Fresh Tomatoes', qty: '50 kg', price: '3.5 TND/kg', days: 'Fri • Sun', notes: 'Pick-up 7-11 AM' },
+                  { market: 'Marché Central', city: 'Tunis', product: 'Olive Oil', qty: '20 L', price: '45 TND/L', days: 'Sat', notes: 'Bring own containers' },
+                  { market: 'Souk Nabeul', city: 'Nabeul', product: 'Dairy Milk', qty: '80 L', price: '2 TND/L', days: 'Daily', notes: 'Morning only' },
+                ].map((m, i) => (
+                  <TableRow key={`mkt-${i}`}>
+                    <TableCell className="font-medium">{m.market}</TableCell>
+                    <TableCell>{m.city}</TableCell>
+                    <TableCell>{m.product}</TableCell>
+                    <TableCell>{m.qty}</TableCell>
+                    <TableCell>{m.price}</TableCell>
+                    <TableCell>{m.days}</TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">{m.notes}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Potential Buyers & Sources */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Potential Buyers & Sources</CardTitle>
+            <CardDescription>Connect with interested buyers and see where they found you</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {[
-                { buyer: 'Mohamed K.', product: 'Olive Oil', region: 'Sousse', message: 'Interested in bulk order' },
-                { buyer: 'Fatima B.', product: 'Dairy Milk', region: 'Nabeul', message: 'Weekly delivery possible?' },
-                { buyer: 'Ali T.', product: 'Fresh Tomatoes', region: 'Tunis', message: 'Can you deliver to Tunis?' },
-              ].map((inquiry, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{inquiry.buyer}</span>
-                      <Badge variant="outline" className="text-xs">{inquiry.region}</Badge>
+                { name: 'Mohamed K.', product: 'Olive Oil', region: 'Sousse', message: 'Interested in bulk order', phone: '+216 22 111 222', email: 'mohamedk@example.com', source: 'Facebook Group • Tunisia Agri', sourceUrl: 'https://facebook.com/groups/tunisia-agri', status: 'Hot' },
+                { name: 'Fatima B.', product: 'Dairy Milk', region: 'Nabeul', message: 'Weekly delivery possible?', phone: '+216 23 333 444', email: 'fatimab@example.com', source: 'WhatsApp • Local Buyer Circle', sourceUrl: '#', status: 'Warm' },
+                { name: 'Ali T.', product: 'Fresh Tomatoes', region: 'Tunis', message: 'Can you deliver to Tunis?', phone: '+216 55 555 555', email: 'ali.t@example.com', source: 'SoukTN Marketplace', sourceUrl: 'https://souk.tn', status: 'New' },
+              ].map((b, i) => (
+                <div key={`buyer-${i}`} className="p-4 rounded-lg border border-border">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{b.name}</span>
+                      <Badge variant="outline" className="text-xs">{b.region}</Badge>
+                      <Badge variant="secondary" className="text-xs">{b.status}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{inquiry.product}</p>
-                    <p className="text-sm italic mt-1">"{inquiry.message}"</p>
+                    <div className="flex items-center gap-2">
+                      <a href={`tel:${b.phone.replace(/\s/g,'')}`} className="inline-flex items-center gap-1 text-sm hover:underline"><Phone className="h-4 w-4"/> {b.phone}</a>
+                      <Separator orientation="vertical" className="h-4"/>
+                      <a href={`mailto:${b.email}`} className="inline-flex items-center gap-1 text-sm hover:underline"><Mail className="h-4 w-4"/> Email</a>
+                    </div>
                   </div>
-                  <Button size="sm">Contact</Button>
+                  <div className="mt-1 text-sm text-muted-foreground">{b.product}</div>
+                  <div className="mt-1 text-sm italic">"{b.message}"</div>
+                  <div className="mt-2 text-xs">
+                    <a href={b.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:underline">
+                      <ExternalLink className="h-3 w-3"/> Source: {b.source}
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>

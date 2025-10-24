@@ -3,41 +3,26 @@ import PluginCard from '@/components/PluginCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Power, Trash2 } from 'lucide-react';
+import { Settings, Power, Trash2, Pin, PinOff, ExternalLink } from 'lucide-react';
+import { builtInModules } from '@/lib/plugins';
+import { usePluginStore } from '@/hooks/useStore';
+import { Link } from 'react-router-dom';
 
 const MyPlugins = () => {
-  const installedPlugins = [
-    {
-      name: 'Livestock Tracker',
-      description: 'Track animal health, vaccinations, and feeding schedules',
-      category: 'Livestock & Health',
-      price: 'Free',
-      rating: 4.9,
-      downloads: '2,500',
-      installed: true,
-      status: 'active'
-    },
-    {
-      name: 'Weather Forecaster',
-      description: 'Get detailed weather forecasts tailored to your location',
-      category: 'Crops & Irrigation',
-      price: 'Free',
-      rating: 4.8,
-      downloads: '4,200',
-      installed: true,
-      status: 'active'
-    },
-    {
-      name: 'Smart Irrigation',
-      description: 'Automatically schedule watering based on weather and soil moisture',
-      category: 'Crops & Irrigation',
-      price: 'Free',
-      rating: 4.8,
-      downloads: '1,200',
-      installed: true,
-      status: 'paused'
-    },
-  ];
+  const { pinnedModules, togglePinned } = usePluginStore();
+
+  const installedPlugins = builtInModules.map((m) => ({
+    id: m.id,
+    route: m.route,
+    name: m.name,
+    description: m.description,
+    category: m.id === 'livestock' ? 'Livestock & Health' : m.id === 'smart-irrigation' ? 'Crops & Irrigation' : m.id === 'marketplace' ? 'Sales & Market' : 'General',
+    price: 'Free',
+    rating: 4.8,
+    downloads: '1,000',
+    installed: true,
+    status: m.id === 'smart-irrigation' ? 'paused' : 'active',
+  }));
 
   const suggestedPlugins = [
     {
@@ -67,6 +52,20 @@ const MyPlugins = () => {
           <p className="text-muted-foreground">Manage your installed farm tools</p>
         </div>
 
+        {/* Pinned to Sidebar */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-2">Pinned to Sidebar</h2>
+          <p className="text-sm text-muted-foreground mb-4">Choose the tools you want quick access to in the sidebar.</p>
+          <div className="flex flex-wrap gap-2">
+            {installedPlugins.map((p) => (
+              <Button key={`pin-${p.id}`} size="sm" variant={pinnedModules[p.id] ? 'default' : 'outline'} className="gap-2" onClick={() => togglePinned(p.id)}>
+                {pinnedModules[p.id] ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                {p.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {/* Active Tools */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -88,6 +87,18 @@ const MyPlugins = () => {
                     <CardDescription>{plugin.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    <div className="flex gap-2">
+                      <Link to={plugin.route} className="w-full">
+                        <Button variant="default" size="sm" className="w-full gap-2">
+                          <ExternalLink className="h-4 w-4" />
+                          Open
+                        </Button>
+                      </Link>
+                      <Button variant={pinnedModules[plugin.id] ? 'secondary' : 'outline'} size="sm" className="gap-2" onClick={() => togglePinned(plugin.id)}>
+                        {pinnedModules[plugin.id] ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                        {pinnedModules[plugin.id] ? 'Pinned' : 'Pin'}
+                      </Button>
+                    </div>
                     <Button variant="outline" size="sm" className="w-full gap-2">
                       <Settings className="h-4 w-4" />
                       Settings
@@ -120,6 +131,18 @@ const MyPlugins = () => {
                       <CardDescription>{plugin.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
+                      <div className="flex gap-2">
+                        <Link to={plugin.route} className="w-full">
+                          <Button variant="default" size="sm" className="w-full gap-2">
+                            <ExternalLink className="h-4 w-4" />
+                            Open
+                          </Button>
+                        </Link>
+                        <Button variant={pinnedModules[plugin.id] ? 'secondary' : 'outline'} size="sm" className="gap-2" onClick={() => togglePinned(plugin.id)}>
+                          {pinnedModules[plugin.id] ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                          {pinnedModules[plugin.id] ? 'Pinned' : 'Pin'}
+                        </Button>
+                      </div>
                       <Button variant="default" size="sm" className="w-full gap-2">
                         <Power className="h-4 w-4" />
                         Activate
