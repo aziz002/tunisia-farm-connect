@@ -11,6 +11,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Index = lazy(() => import("./pages/Index"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
+const CropsMarketplace = lazy(() => import("./pages/CropsMarketplace"));
 const MyPlugins = lazy(() => import("./pages/MyPlugins"));
 const Livestock = lazy(() => import("./pages/Livestock"));
 const SmartIrrigation = lazy(() => import("./pages/SmartIrrigation"));
@@ -39,6 +40,7 @@ const App = () => (
                 }
               />
               <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/crops-market" element={<CropsMarketplace />} />
               <Route
                 path="/my-plugins"
                 element={

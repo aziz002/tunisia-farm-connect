@@ -56,9 +56,9 @@ export default function AppSidebar() {
     () => [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Droplets, label: 'Smart Irrigation', path: '/smart-irrigation' },
-      { icon: Sprout, label: 'Crops', path: '/dashboard#crops' },
-      { icon: Beef, label: 'Livestock', path: '/livestock' },
-      { icon: Store, label: 'Marketplace', path: '/marketplace', badge: '12' },
+      { icon: Sprout, label: 'Livestock', path: '/livestock' },
+      { icon: Store, label: 'Tools Marketplace', path: '/marketplace', badge: '12' },
+      { icon: Store, label: 'Crops Market', path: '/crops-market' },
       { icon: Puzzle, label: 'My Tools', path: '/my-plugins' },
     ],
     [],
@@ -108,21 +108,17 @@ export default function AppSidebar() {
           </SidebarGroup>
         )}
 
+        {/* My Business */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>My Business</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {[{ icon: Home, label: 'Dashboard', path: '/dashboard' }, { icon: Store, label: 'Sales Dashboard', path: '/marketplace-seller' }, { icon: Droplets, label: 'Smart Irrigation', path: '/smart-irrigation' }, { icon: Sprout, label: 'Livestock', path: '/livestock' }].map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton asChild isActive={isActive(item.path)} tooltip={item.label}>
                     <Link to={item.path} className="flex items-center gap-2">
                       <item.icon className="h-4 w-4" />
                       <span>{item.label}</span>
-                      {item.badge ? (
-                        <Badge className="ml-auto" variant="secondary">
-                          {item.badge}
-                        </Badge>
-                      ) : null}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -133,14 +129,15 @@ export default function AppSidebar() {
 
         <SidebarSeparator />
 
+        {/* Tools */}
         <SidebarGroup>
-          <SidebarGroupLabel>Shortcuts</SidebarGroupLabel>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Open Marketplace">
                   <button onClick={() => navigate('/marketplace')}>
-                    <Store className="h-4 w-4" /> <span>Explore Marketplace</span>
+                    <Store className="h-4 w-4" /> <span>Explore Tools</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
