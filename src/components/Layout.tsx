@@ -1,8 +1,12 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Store, Puzzle, Sprout, Droplets, LogOut } from 'lucide-react';
+import { Home, Store, Puzzle, Sprout, Droplets, LogOut, Moon, Sun, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
+import { useSettingsStore } from '@/hooks/useStore';
+import AIAssistant from '@/components/AIAssistant';
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,18 +15,30 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { theme, lang, setTheme, setLang } = useSettingsStore();
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Store, label: 'Marketplace', path: '/marketplace' },
-    { icon: Puzzle, label: 'My Plugins', path: '/my-plugins' },
+    { icon: Puzzle, label: 'My Tools', path: '/my-plugins' },
     { icon: Droplets, label: 'Smart Irrigation', path: '/smart-irrigation' },
     { icon: Sprout, label: 'Livestock', path: '/livestock' },
   ];
 
   const handleSignOut = () => {
+    logout();
     navigate('/login');
   };
+
+  // Apply theme and language direction
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
+    root.setAttribute('lang', lang);
+    root.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }, [theme, lang]);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -60,7 +76,25 @@ const Layout = ({ children }: LayoutProps) => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              variant="ghost"
+              className="flex items-center gap-2 w-[48%] justify-start hover:bg-sidebar-accent"
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              <span className="text-sm text-sidebar-foreground">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </Button>
+            <Button
+              onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+              variant="ghost"
+              className="flex items-center gap-2 w-[48%] justify-start hover:bg-sidebar-accent"
+            >
+              <Languages className="h-5 w-5" />
+              <span className="text-sm text-sidebar-foreground">{lang === 'ar' ? 'English' : 'العربية'}</span>
+            </Button>
+          </div>
           <Button
             onClick={handleSignOut}
             variant="ghost"
@@ -75,6 +109,7 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto ml-64">
         {children}
+        <AIAssistant />
       </main>
     </div>
   );

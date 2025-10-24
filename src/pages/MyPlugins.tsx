@@ -63,7 +63,7 @@ const MyPlugins = () => {
       <div className="p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Plugins</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Tools</h1>
           <p className="text-muted-foreground">Manage your installed farm tools</p>
         </div>
 

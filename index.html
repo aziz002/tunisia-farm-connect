@@ -18,6 +18,16 @@
   </head>
 
   <body>
+    <script>
+      (function() {
+        try {
+          const stored = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const dark = stored ? stored === 'dark' : prefersDark;
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (_) { /* noop */ }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

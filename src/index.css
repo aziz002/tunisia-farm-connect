@@ -26,8 +26,9 @@ All colors MUST be HSL.
     --muted: 39 25% 88%;
     --muted-foreground: 200 18% 46%;
 
-    --accent: 4 77% 58%;
-    --accent-foreground: 0 0% 100%;
+  /* Accent used for subtle hovers and highlights (green-teal) */
+  --accent: 156 60% 41%;
+  --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -67,8 +68,9 @@ All colors MUST be HSL.
     --muted: 200 18% 25%;
     --muted-foreground: 39 25% 70%;
 
-    --accent: 4 77% 58%;
-    --accent-foreground: 0 0% 100%;
+  /* Dark mode accent */
+  --accent: 156 60% 36%;
+  --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;

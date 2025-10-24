@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sprout } from 'lucide-react';
 import farmHero from '@/assets/farm-hero.jpg';
+import { useAuth } from '@/hooks/useAuth';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [step, setStep] = useState<'login' | 'signup'>('login');
   const [formData, setFormData] = useState({
     name: '',
@@ -19,14 +21,17 @@ const Login = () => {
     farmType: ''
   });
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    await login(formData.email, formData.password);
     navigate('/dashboard');
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name && formData.email && formData.password) {
+      // For POC: treat signup as login
+      await login(formData.email, formData.password);
       navigate('/dashboard');
     }
   };

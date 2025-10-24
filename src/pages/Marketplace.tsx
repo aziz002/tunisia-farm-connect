@@ -74,7 +74,7 @@ const Marketplace = () => {
       <div className="p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Plugin Marketplace</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Tool Marketplace</h1>
           <p className="text-muted-foreground">Discover and add new tools to enhance your farm</p>
         </div>
 
