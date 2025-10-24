@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
-import { Droplets, Home, Puzzle, Store, Sun, Moon, Languages, Rocket, Search } from 'lucide-react';
+import { Droplets, Home, Puzzle, Store, Sun, Moon, Languages, Rocket, Search, ShoppingBag } from 'lucide-react';
 import { useSettingsStore, useUIStore } from '@/hooks/useStore';
 
 export default function CommandMenu() {
@@ -35,11 +35,17 @@ export default function CommandMenu() {
           <CommandItem onSelect={() => run(() => navigate('/dashboard'))}>
             <Home className="mr-2 h-4 w-4" /> Dashboard
           </CommandItem>
+          <CommandItem onSelect={() => run(() => navigate('/marketplace-seller'))}>
+            <Store className="mr-2 h-4 w-4" /> Sales Dashboard
+          </CommandItem>
           <CommandItem onSelect={() => run(() => navigate('/smart-irrigation'))}>
             <Droplets className="mr-2 h-4 w-4" /> Smart Irrigation
           </CommandItem>
           <CommandItem onSelect={() => run(() => navigate('/marketplace'))}>
-            <Store className="mr-2 h-4 w-4" /> Marketplace
+            <Store className="mr-2 h-4 w-4" /> Explore Tools
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => navigate('/crops-market'))}>
+            <ShoppingBag className="mr-2 h-4 w-4" /> Crops Market
           </CommandItem>
           <CommandItem onSelect={() => run(() => navigate('/my-plugins'))}>
             <Puzzle className="mr-2 h-4 w-4" /> My Tools
