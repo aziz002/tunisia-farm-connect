@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, TrendingUp, Package, Eye, Phone, Mail, ExternalLink, Save, X, Send } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSalesStore, type Listing, type Offer, type BuyerLead, type Channel, type Posting } from '@/hooks/useSalesStore';
 import { Switch } from '@/components/ui/switch';
 
@@ -44,10 +45,11 @@ function qtyUnitLabel(u: string) {
 }
 
 export default function SalesDashboard() {
-  const { listings, leads, offers, channels, postings, addListing, removeListing, seedDemoData, toggleChannel, broadcastListing } = useSalesStore();
+  const { listings, leads, offers, channels, postings, addListing, removeListing, seedDemoData, toggleChannel, broadcastListing, autoPostEnabled, setAutoPostEnabled } = useSalesStore();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'listings' | 'markets' | 'buyers' | 'distribution'>('listings');
   const [selectedListingId, setSelectedListingId] = useState<number | undefined>(undefined);
+  const location = useLocation();
 
   // Seed demo data if empty
   useEffect(() => {
@@ -55,6 +57,15 @@ export default function SalesDashboard() {
       seedDemoData();
     }
   }, [listings.length, leads.length, offers.length, seedDemoData]);
+
+  // Set initial tab based on hash (e.g., #distribution)
+  useEffect(() => {
+    const h = (location.hash || '').replace('#','');
+    if (h === 'buyers' || h === 'markets' || h === 'distribution' || h === 'listings') {
+      setTab(h as typeof tab);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeCount = listings.length;
   const offersCount = offers.length;
@@ -76,7 +87,7 @@ export default function SalesDashboard() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">Sales Dashboard</h1>
-            <p className="text-muted-foreground">List your products, track offers per market, and connect with buyers</p>
+            <p className="text-muted-foreground">Auto-post your listings to markets and groups; we brief you when buyers engage</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -90,6 +101,20 @@ export default function SalesDashboard() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Auto-post global toggle */}
+        <Card className="mb-6">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <div className="font-medium">Auto-post new listings</div>
+              <div className="text-sm text-muted-foreground">When on, we publish to all enabled channels automatically</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{autoPostEnabled ? 'On' : 'Off'}</span>
+              <Switch checked={autoPostEnabled} onCheckedChange={setAutoPostEnabled} />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -135,6 +160,7 @@ export default function SalesDashboard() {
                       <TableHead>Market</TableHead>
                       <TableHead>City</TableHead>
                       <TableHead>Days</TableHead>
+                      <TableHead>Targets</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -148,6 +174,16 @@ export default function SalesDashboard() {
                         <TableCell>{l.market}</TableCell>
                         <TableCell>{l.city}</TableCell>
                         <TableCell>{l.days}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {(l.targets || []).map((t) => (
+                              <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
+                            ))}
+                            {(!l.targets || l.targets.length === 0) && (
+                              <span className="text-xs text-muted-foreground">All buyers</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => removeListing(l.id)}>Remove</Button>
                         </TableCell>
@@ -365,7 +401,9 @@ function AddListingForm({ onSave, onCancel }: { onSave: (l: Omit<Listing, 'id' |
     market: '',
     days: 'Fri • Sun',
     notes: '',
+    targets: [],
   });
+  const SEGMENTS = ['Hotels', 'Restaurants', 'Wholesalers', 'Retailers', 'Exporters', 'Resellers'];
 
   return (
     <div className="space-y-4">
@@ -432,6 +470,30 @@ function AddListingForm({ onSave, onCancel }: { onSave: (l: Omit<Listing, 'id' |
         </Field>
         <Field label="Notes (optional)">
           <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Pick-up 7-11 AM" />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <Field label="Target buyers (optional)">
+          <div className="flex flex-wrap gap-2">
+            {SEGMENTS.map((seg) => {
+              const active = (form.targets || []).includes(seg);
+              return (
+                <button
+                  type="button"
+                  key={seg}
+                  onClick={() => {
+                    const cur = new Set(form.targets || []);
+                    if (cur.has(seg)) cur.delete(seg); else cur.add(seg);
+                    setForm({ ...form, targets: Array.from(cur) });
+                  }}
+                  className={`text-xs px-2 py-1 rounded border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-accent/50'}`}
+                >
+                  {seg}
+                </button>
+              );
+            })}
+          </div>
         </Field>
       </div>
 

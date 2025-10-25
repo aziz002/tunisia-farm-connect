@@ -3,7 +3,7 @@ import DashboardCard from '@/components/DashboardCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sprout, Beef, Sun, ShoppingBag, Plus, Bell, Calendar, Droplets } from 'lucide-react';
+import { Sprout, Beef, Sun, ShoppingBag, Plus, Bell, Calendar, Droplets, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -116,6 +116,14 @@ const Dashboard = () => {
               >
                 <Droplets className="h-4 w-4" />
                 Smart Irrigation
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2"
+                onClick={() => navigate('/marketplace-seller')}
+              >
+                <Store className="h-4 w-4" />
+                Seller Console
               </Button>
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Sprout className="h-4 w-4" />
