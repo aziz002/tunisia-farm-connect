@@ -16,6 +16,7 @@ const MyPlugins = lazy(() => import("./pages/MyPlugins"));
 const Livestock = lazy(() => import("./pages/Livestock"));
 const SmartIrrigation = lazy(() => import("./pages/SmartIrrigation"));
 const MarketplaceSeller = lazy(() => import("./pages/MarketplaceSeller"));
+const PlantDiseaseDetection = lazy(() => import("./pages/PlantDiseaseDetection"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -70,6 +71,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <MarketplaceSeller />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/plant-disease-detection"
+                element={
+                  <ProtectedRoute>
+                    <PlantDiseaseDetection />
                   </ProtectedRoute>
                 }
               />

@@ -6,6 +6,7 @@ Modern farm management dashboard with smart irrigation, livestock, marketplace, 
 
 - Responsive, collapsible sidebar with keyboard toggle (Ctrl/Cmd + B), cookie-persisted state
 - Command palette (Ctrl/Cmd + K) for global actions and navigation
+- **Plant Disease Detection**: AI-powered plant disease identification using local browser-based models (no API required)
 - Agentic AI assistant with quick suggestions and app-integrated tools (open pages, toggle theme/language, open schedule editor)
 - Role-ready navigation and modular pages (Dashboard, Smart Irrigation, Livestock, Marketplace, My Tools)
 - Theme and language switching (English/العربية) with direction support (LTR/RTL)
@@ -17,6 +18,17 @@ Modern farm management dashboard with smart irrigation, livestock, marketplace, 
 npm i
 npm run dev
 ```
+
+### Plant Disease Detection Setup
+
+The AI-powered plant disease detection now runs **locally in your browser** - no API setup required!
+
+- ✅ **No API keys needed** - models run entirely in your browser
+- ✅ **Works offline** after initial model download
+- ✅ **Privacy-first** - images never leave your device
+- ✅ **No rate limits** - analyze as many plants as you want
+
+The AI model downloads automatically on first use (may take 1-2 minutes). See [PLANT_DISEASE_DETECTION.md](./PLANT_DISEASE_DETECTION.md) for detailed information.
 
 Build for production:
 

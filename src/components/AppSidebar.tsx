@@ -34,6 +34,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Scan,
 } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -113,7 +114,7 @@ export default function AppSidebar() {
           <SidebarGroupLabel>My Business</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {[{ icon: Home, label: 'Dashboard', path: '/dashboard' }, { icon: Store, label: 'Sales Dashboard', path: '/marketplace-seller' }, { icon: Droplets, label: 'Smart Irrigation', path: '/smart-irrigation' }, { icon: Sprout, label: 'Livestock', path: '/livestock' }].map((item) => (
+              {[{ icon: Home, label: 'Dashboard', path: '/dashboard' }, { icon: Store, label: 'Sales Dashboard', path: '/marketplace-seller' }, { icon: Droplets, label: 'Smart Irrigation', path: '/smart-irrigation' }, { icon: Sprout, label: 'Livestock', path: '/livestock' }, { icon: Scan, label: 'Disease Detection', path: '/plant-disease-detection' }].map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton asChild isActive={isActive(item.path)} tooltip={item.label}>
                     <Link to={item.path} className="flex items-center gap-2">
