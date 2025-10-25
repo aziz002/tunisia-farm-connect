@@ -7,10 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, Package, Eye, Phone, Mail, ExternalLink, Save, X, Send } from 'lucide-react';
+import { Plus, Phone, Mail, ExternalLink, Save, X, Send, Eye, Share2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSalesStore, type Listing, type Offer, type BuyerLead, type Channel, type Posting } from '@/hooks/useSalesStore';
 import { Switch } from '@/components/ui/switch';
 
@@ -44,10 +44,18 @@ function qtyUnitLabel(u: string) {
 }
 
 export default function SalesDashboard() {
-  const { listings, leads, offers, channels, postings, addListing, removeListing, seedDemoData, toggleChannel, broadcastListing } = useSalesStore();
+  const { listings, leads, offers, channels, postings, addListing, removeListing, seedDemoData, seedChannels, toggleChannel, broadcastListing, autoPostEnabled, setAutoPostEnabled } = useSalesStore();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'listings' | 'markets' | 'buyers' | 'distribution'>('listings');
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<number | undefined>(undefined);
+  const location = useLocation();
+  // Filters
+  const [q, setQ] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'Crop' | 'Animal' | 'Other'>('all');
+  const [cityFilter, setCityFilter] = useState<'all' | string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'posted' | 'not_posted'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | number>('all');
+  const [targetFilter, setTargetFilter] = useState<string[]>([]);
 
   // Seed demo data if empty
   useEffect(() => {
@@ -56,19 +64,46 @@ export default function SalesDashboard() {
     }
   }, [listings.length, leads.length, offers.length, seedDemoData]);
 
+  // Ensure channels are seeded even if other data exists
+  useEffect(() => {
+    if (channels.length === 0) {
+      seedChannels();
+    }
+  }, [channels.length, seedChannels]);
+
+  // No tabs now; keep hash for potential anchors later
+  useEffect(() => {
+    void location; // placeholder to avoid unused var lint in some setups
+  }, [location]);
+
   const activeCount = listings.length;
   const offersCount = offers.length;
   const buyersCount = leads.length;
 
-  const marketsAgg = useMemo(() => {
-    const map = new Map<string, { city: string; offers: Offer[] }>();
-    for (const o of offers) {
-      const key = `${o.market}-${o.city}`;
-      if (!map.has(key)) map.set(key, { city: o.city, offers: [] });
-      map.get(key)!.offers.push(o);
-    }
-    return Array.from(map.entries()).map(([k, v]) => ({ market: k.split('-')[0], city: v.city, offers: v.offers }));
-  }, [offers]);
+  // Derived: cities and targets for filters
+  const uniqueCities = useMemo(() => Array.from(new Set(listings.map(l => l.city))).sort(), [listings]);
+  const uniqueTargets = useMemo(() => Array.from(new Set(listings.flatMap(l => l.targets || []))).sort(), [listings]);
+  const filteredListings = useMemo(() => {
+    const text = q.trim().toLowerCase();
+    const byIdPosted = new Set(postings.map(p => p.listingId));
+    return listings.filter(l => {
+      if (text && !(l.product.toLowerCase().includes(text) || l.city.toLowerCase().includes(text))) return false;
+      if (typeFilter !== 'all' && l.type !== typeFilter) return false;
+      if (cityFilter !== 'all' && l.city !== cityFilter) return false;
+      if (statusFilter === 'posted' && !byIdPosted.has(l.id)) return false;
+      if (statusFilter === 'not_posted' && byIdPosted.has(l.id)) return false;
+      if (targetFilter.length > 0) {
+        const hasAny = (l.targets || []).some(t => targetFilter.includes(t));
+        if (!hasAny) return false;
+      }
+      if (channelFilter !== 'all') {
+        const postedToChannel = postings.some(p => p.listingId === l.id && p.channelId === channelFilter);
+        const leadsFromChannel = leads.some(b => b.product === l.product && b.channelId === channelFilter);
+        if (!postedToChannel && !leadsFromChannel) return false;
+      }
+      return true;
+    });
+  }, [q, typeFilter, cityFilter, statusFilter, channelFilter, targetFilter, listings, postings, leads]);
 
   return (
     <Layout>
@@ -76,7 +111,7 @@ export default function SalesDashboard() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">Sales Dashboard</h1>
-            <p className="text-muted-foreground">List your products, track offers per market, and connect with buyers</p>
+            <p className="text-muted-foreground">Auto-post your listings to markets and groups; we brief you when buyers engage</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -91,253 +126,307 @@ export default function SalesDashboard() {
           </Dialog>
         </div>
 
+        {/* Auto-post global toggle */}
+        <Card className="mb-6">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <div className="font-medium">Auto-post new listings</div>
+              <div className="text-sm text-muted-foreground">When on, we publish to all enabled channels automatically</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{autoPostEnabled ? 'On' : 'Off'}</span>
+              <Switch checked={autoPostEnabled} onCheckedChange={setAutoPostEnabled} />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          {[{ label: 'Active Listings', value: activeCount, icon: Package, color: 'text-primary' }, { label: 'Open Offers', value: offersCount, icon: Eye, color: 'text-secondary' }, { label: 'Potential Buyers', value: buyersCount, icon: TrendingUp, color: 'text-accent' }].map((s, i) => {
-            const Icon = s.icon;
+          {[{ label: 'Active Listings', value: activeCount }, { label: 'Open Offers', value: offersCount }, { label: 'Potential Buyers', value: buyersCount }].map((s, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2"><CardDescription>{s.label}</CardDescription></CardHeader>
+              <CardContent><div className="text-3xl font-bold">{s.value}</div></CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-4">
+          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="md:col-span-2">
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products or city..." />
+            </div>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+              <SelectTrigger><SelectValue placeholder="Type"/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="Crop">Crop</SelectItem>
+                <SelectItem value="Animal">Animal</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={cityFilter} onValueChange={(v) => setCityFilter(v as typeof cityFilter)}>
+              <SelectTrigger><SelectValue placeholder="City"/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cities</SelectItem>
+                {uniqueCities.map(c => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger><SelectValue placeholder="Status"/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="posted">Posted</SelectItem>
+                <SelectItem value="not_posted">Not posted</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="md:col-span-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Targets:</span>
+                {uniqueTargets.length === 0 && <span className="text-xs text-muted-foreground">No targets yet</span>}
+                {uniqueTargets.map(seg => {
+                  const active = targetFilter.includes(seg);
+                  return (
+                    <button key={seg} type="button" onClick={() => {
+                      const cur = new Set(targetFilter);
+                      if (cur.has(seg)) cur.delete(seg); else cur.add(seg);
+                      setTargetFilter(Array.from(cur));
+                    }} className={`text-xs px-2 py-1 rounded border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-accent/50'}`}>
+                      {seg}
+                    </button>
+                  );
+                })}
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Channel:</span>
+                  <Select value={String(channelFilter)} onValueChange={(v) => setChannelFilter(v === 'all' ? 'all' : Number(v))}>
+                    <SelectTrigger className="w-48"><SelectValue placeholder="Channel"/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All channels</SelectItem>
+                      {channels.map(c => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="sm" onClick={() => { setQ(''); setTypeFilter('all'); setCityFilter('all'); setStatusFilter('all'); setTargetFilter([]); setChannelFilter('all'); }}>Clear</Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        {/* Listings as cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredListings.map((l) => {
+            const lPostings = postings.filter((p) => p.listingId === l.id);
+            const lOffers = offers.filter((o) => o.product === l.product);
+            const lLeads = leads.filter((b) => b.product === l.product);
             return (
-              <Card key={i}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardDescription>{s.label}</CardDescription>
-                  <Icon className={`h-5 w-5 ${s.color}`} />
+              <Card key={l.id} className="hover:shadow-sm transition">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base">{l.product}</CardTitle>
+                      <CardDescription>{l.type} • {l.quantity} {qtyUnitLabel(l.qtyUnit)} • {l.city}</CardDescription>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setSelectedListingId(l.id); setDetailsOpen(true); }} aria-label="Open details"><Eye className="h-4 w-4"/></Button>
+                      <Button size="icon" variant="ghost" disabled={channels.filter((c) => c.enabled).length === 0} onClick={() => broadcastListing(l.id)} aria-label="Broadcast"><Send className="h-4 w-4"/></Button>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
+                <CardContent className="space-y-2">
+                  <div className="text-sm">{l.priceMin}–{l.priceMax} TND{priceUnitLabel(l.priceUnit)}</div>
+                  {(l.targets && l.targets.length > 0) && (
+                    <div className="flex flex-wrap gap-1">
+                      {l.targets.map((t) => (<Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>))}
+                    </div>
+                  )}
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    <span>{lPostings.length} posts</span>
+                    <span>{lLeads.length} buyers</span>
+                    <span>{lOffers.length} offers</span>
+                  </div>
                 </CardContent>
               </Card>
             );
           })}
+          {listings.length === 0 && (
+            <Card className="col-span-full"><CardContent className="p-6 text-center text-muted-foreground">No listings yet. Click "Add Listing" to publish your first product.</CardContent></Card>
+          )}
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList>
-            <TabsTrigger value="listings">My Listings</TabsTrigger>
-            <TabsTrigger value="markets">Markets & Offers</TabsTrigger>
-            <TabsTrigger value="buyers">Potential Buyers</TabsTrigger>
-            <TabsTrigger value="distribution">Distribution</TabsTrigger>
-          </TabsList>
+        {/* Details Dialog */}
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="max-w-3xl">
+            {selectedListingId && (() => {
+              const l = listings.find(x => x.id === selectedListingId)!;
+              const lPostings = postings.filter(p => p.listingId === l.id);
+              const lOffers = offers.filter(o => o.product === l.product);
+              const lLeads = leads.filter(b => b.product === l.product);
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center justify-between gap-2">
+                      <span>{l.product}</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={channels.filter((c) => c.enabled).length === 0} onClick={() => broadcastListing(l.id)} className="gap-1"><Share2 className="h-4 w-4"/> Broadcast</Button>
+                      </div>
+                    </DialogTitle>
+                  </DialogHeader>
 
-          {/* Listings */}
-          <TabsContent value="listings" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Listings</CardTitle>
-                <CardDescription>Products you are currently selling</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Price Range</TableHead>
-                      <TableHead>Market</TableHead>
-                      <TableHead>City</TableHead>
-                      <TableHead>Days</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {listings.map((l) => (
-                      <TableRow key={l.id}>
-                        <TableCell className="font-medium">{l.product}</TableCell>
-                        <TableCell>{l.type}</TableCell>
-                        <TableCell>{l.quantity} {qtyUnitLabel(l.qtyUnit)}</TableCell>
-                        <TableCell>{l.priceMin} - {l.priceMax} TND{priceUnitLabel(l.priceUnit)}</TableCell>
-                        <TableCell>{l.market}</TableCell>
-                        <TableCell>{l.city}</TableCell>
-                        <TableCell>{l.days}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => removeListing(l.id)}>Remove</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {listings.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">No listings yet. Click "Add Listing" to publish your first product.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-base">Overview</CardTitle><CardDescription>Quick facts</CardDescription></CardHeader>
+                      <CardContent className="text-sm space-y-1">
+                        <div><span className="text-muted-foreground">Type:</span> {l.type}</div>
+                        <div><span className="text-muted-foreground">Quantity:</span> {l.quantity} {qtyUnitLabel(l.qtyUnit)}</div>
+                        <div><span className="text-muted-foreground">Price:</span> {l.priceMin}–{l.priceMax} TND{priceUnitLabel(l.priceUnit)}</div>
+                        <div><span className="text-muted-foreground">Location:</span> {l.market} • {l.city}</div>
+                        <div><span className="text-muted-foreground">Days:</span> {l.days}</div>
+                        {l.notes && <div><span className="text-muted-foreground">Notes:</span> {l.notes}</div>}
+                        {l.targets && l.targets.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">{l.targets.map(t => (<Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>))}</div>
+                        )}
+                      </CardContent>
+                    </Card>
 
-          {/* Markets & Offers */}
-          <TabsContent value="markets" className="mt-4 space-y-4">
-            {marketsAgg.length === 0 && (
-              <Card><CardContent className="p-6 text-center text-muted-foreground">No offers yet. When buyers propose a price, they will appear here grouped by market.</CardContent></Card>
-            )}
-            {marketsAgg.map((mkt, idx) => (
-              <Card key={`mkt-${idx}`}>
-                <CardHeader>
-                  <CardTitle>{mkt.market} • {mkt.city}</CardTitle>
-                  <CardDescription>Offers received in this market</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Offer</TableHead>
-                        <TableHead>Buyer</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Contact</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mkt.offers.map((o) => (
-                        <TableRow key={o.id}>
-                          <TableCell>{o.product}</TableCell>
-                          <TableCell>{o.price} TND{priceUnitLabel(o.priceUnit)}</TableCell>
-                          <TableCell>{o.buyer}</TableCell>
-                          <TableCell><Badge variant={o.status === 'new' ? 'secondary' : o.status === 'accepted' ? 'default' : 'outline'}>{o.status}</Badge></TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {o.phone && <a href={`tel:${o.phone.replace(/\s/g,'')}`}><Button size="sm"><Phone className="h-4 w-4 mr-1"/>Call</Button></a>}
-                              {o.email && <a href={`mailto:${o.email}`}><Button size="sm" variant="outline"><Mail className="h-4 w-4 mr-1"/>Email</Button></a>}
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-base">Posted To</CardTitle><CardDescription>Networks and channels</CardDescription></CardHeader>
+                      <CardContent>
+                        {lPostings.length === 0 && <div className="text-sm text-muted-foreground">Not posted yet.</div>}
+                        <div className="space-y-3">
+                          {lPostings.map((p) => {
+                            const c = channels.find(x => x.id === p.channelId);
+                            const channelLeads = lLeads.filter(b => b.channelId === (c?.id || -1));
+                            return (
+                              <div key={p.id} className="p-2 rounded border">
+                                <div className="flex items-center justify-between text-sm">
+                                  <div className="min-w-0">
+                                    <div className="font-medium truncate">{c ? c.name : `Channel #${p.channelId}`}</div>
+                                    <div className="text-xs text-muted-foreground truncate">{c ? c.type : ''} • {new Date(p.createdAt).toLocaleString()}</div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={p.status === 'posted' ? 'secondary' : p.status === 'scheduled' ? 'outline' : 'destructive'} className="text-[10px]">{p.status}</Badge>
+                                    {c?.url && <a className="text-xs underline text-muted-foreground" href={c.url} target="_blank" rel="noreferrer">Open</a>}
+                                  </div>
+                                </div>
+                                {/* Channel-specific buyers */}
+                                <div className="mt-2 space-y-1">
+                                  {channelLeads.map((b) => (
+                                    <div key={b.id} className="flex items-center justify-between text-xs p-2 rounded border">
+                                      <div className="min-w-0">
+                                        <div className="font-medium truncate">{b.name}</div>
+                                        <div className="text-[11px] text-muted-foreground truncate">{b.region}{b.source ? ` • ${b.source}` : ''}</div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <a href={`tel:${b.phone.replace(/\s/g,'')}`} className="underline">Call</a>
+                                        {b.email && <a href={`mailto:${b.email}`} className="underline">Email</a>}
+                                        {b.sourceUrl && <a href={b.sourceUrl} target="_blank" rel="noreferrer" className="underline">Source</a>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {channelLeads.length === 0 && (
+                                    <div className="text-xs text-muted-foreground">No buyers from this channel yet.</div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-base">Potential Buyers</CardTitle><CardDescription>People and resellers showing interest</CardDescription></CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {lLeads.map((b) => (
+                            <div key={b.id} className="p-2 rounded border text-sm">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium">{b.name}</div>
+                                <Badge variant="secondary" className="text-[10px]">{b.status}</Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">{b.region} • {b.product}</div>
+                              {b.message && <div className="text-xs italic mt-1">"{b.message}"</div>}
+                              <div className="flex items-center gap-2 mt-2 text-xs">
+                                <a href={`tel:${b.phone.replace(/\s/g,'')}`} className="inline-flex items-center gap-1"><Phone className="h-3 w-3"/> {b.phone}</a>
+                                {b.email && (<a href={`mailto:${b.email}`} className="inline-flex items-center gap-1"><Mail className="h-3 w-3"/> Email</a>)}
+                                {b.source && (
+                                  <span className="inline-flex items-center gap-1 text-muted-foreground"><ExternalLink className="h-3 w-3"/> {b.source}</span>
+                                )}
+                              </div>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          {/* Buyers */}
-          <TabsContent value="buyers" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Potential Buyers & Sources</CardTitle>
-                <CardDescription>Connect with interested buyers and see where they found you</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {leads.map((b) => (
-                    <div key={`buyer-${b.id}`} className="p-4 rounded-lg border border-border">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{b.name}</span>
-                          <Badge variant="outline" className="text-xs">{b.region}</Badge>
-                          <Badge variant="secondary" className="text-xs">{b.status}</Badge>
+                          ))}
+                          {lLeads.length === 0 && <div className="text-sm text-muted-foreground">No buyers yet.</div>}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <a href={`tel:${b.phone.replace(/\s/g,'')}`} className="inline-flex items-center gap-1 text-sm hover:underline"><Phone className="h-4 w-4"/> {b.phone}</a>
-                          {b.email && (<><Separator orientation="vertical" className="h-4"/><a href={`mailto:${b.email}`} className="inline-flex items-center gap-1 text-sm hover:underline"><Mail className="h-4 w-4"/> Email</a></>)}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">{b.product}</div>
-                      {b.message && <div className="mt-1 text-sm italic">"{b.message}"</div>}
-                      {b.source && (
-                        <div className="mt-2 text-xs">
-                          <a href={b.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:underline">
-                            <ExternalLink className="h-3 w-3"/> Source: {b.source}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {leads.length === 0 && (
-                    <div className="p-6 text-center text-muted-foreground">No buyers yet.</div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      </CardContent>
+                    </Card>
 
-          {/* Distribution */}
-          <TabsContent value="distribution" className="mt-4 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Channels</CardTitle>
-                <CardDescription>Where your listings are posted</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {channels.map((c) => (
-                    <div key={`ch-${c.id}`} className="flex items-center justify-between border rounded-md p-3">
-                      <div className="flex flex-col">
-                        <div className="font-medium">{c.name}</div>
-                        <div className="text-xs text-muted-foreground">{c.type}{c.url ? ` • ${c.url}` : ''}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Enabled</span>
-                        <Switch checked={c.enabled} onCheckedChange={(v) => toggleChannel(c.id, v)} />
-                      </div>
-                    </div>
-                  ))}
-                  {channels.length === 0 && (
-                    <div className="text-sm text-muted-foreground">No channels yet. We seed a few demos on first load.</div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Broadcast a listing</CardTitle>
-                <CardDescription>Select a listing and post it to all enabled channels</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col md:flex-row gap-3 items-center">
-                  <div className="flex-1 w-full">
-                    <Select value={selectedListingId?.toString()} onValueChange={(v) => setSelectedListingId(Number(v))}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Choose a listing"/></SelectTrigger>
-                      <SelectContent>
-                        {listings.map((l) => (
-                          <SelectItem value={l.id.toString()} key={`ls-${l.id}`}>{l.product} • {l.city}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Card className="md:col-span-2">
+                      <CardHeader className="pb-2"><CardTitle className="text-base">Offers</CardTitle><CardDescription>Incoming price proposals</CardDescription></CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Buyer</TableHead>
+                              <TableHead>Offer</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Contact</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lOffers.map((o) => (
+                              <TableRow key={o.id}>
+                                <TableCell className="font-medium">{o.buyer}</TableCell>
+                                <TableCell>{o.price} TND{priceUnitLabel(o.priceUnit)}</TableCell>
+                                <TableCell><Badge variant={o.status === 'new' ? 'secondary' : o.status === 'accepted' ? 'default' : 'outline'}>{o.status}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    {o.phone && <a href={`tel:${o.phone.replace(/\s/g,'')}`}><Button size="sm"><Phone className="h-4 w-4 mr-1"/>Call</Button></a>}
+                                    {o.email && <a href={`mailto:${o.email}`}><Button size="sm" variant="outline"><Mail className="h-4 w-4 mr-1"/>Email</Button></a>}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {lOffers.length === 0 && (
+                              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No offers yet.</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <Button disabled={!selectedListingId || channels.filter((c) => c.enabled).length === 0} onClick={() => selectedListingId && broadcastListing(selectedListingId)} className="gap-2">
-                    <Send className="h-4 w-4"/> Post to enabled channels
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent postings</CardTitle>
-                <CardDescription>Last broadcasts across your channels</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>When</TableHead>
-                      <TableHead>Listing</TableHead>
-                      <TableHead>Channel</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {postings.slice(0, 10).map((p) => {
-                      const l = listings.find((x) => x.id === p.listingId);
-                      const c = channels.find((x) => x.id === p.channelId);
-                      return (
-                        <TableRow key={`p-${p.id}`}>
-                          <TableCell>{new Date(p.createdAt).toLocaleString()}</TableCell>
-                          <TableCell>{l ? l.product : `#${p.listingId}`}</TableCell>
-                          <TableCell>{c ? c.name : `#${p.channelId}`}</TableCell>
-                          <TableCell><Badge variant={p.status === 'posted' ? 'secondary' : p.status === 'scheduled' ? 'outline' : 'destructive'}>{p.status}</Badge></TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {postings.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No postings yet.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Channels management */}
+        <div className="mt-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Channels</CardTitle>
+              <CardDescription>Where your listings are posted</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {channels.map((c) => (
+                  <div key={`ch-${c.id}`} className="flex items-center justify-between border rounded-md p-3">
+                    <div className="flex flex-col">
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{c.type}{c.url ? ` • ${c.url}` : ''}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Enabled</span>
+                      <Switch checked={c.enabled} onCheckedChange={(v) => toggleChannel(c.id, v)} />
+                    </div>
+                  </div>
+                ))}
+                {channels.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No channels yet. We seed a few demos on first load.</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </Layout>
   );
@@ -365,7 +454,9 @@ function AddListingForm({ onSave, onCancel }: { onSave: (l: Omit<Listing, 'id' |
     market: '',
     days: 'Fri • Sun',
     notes: '',
+    targets: [],
   });
+  const SEGMENTS = ['Hotels', 'Restaurants', 'Wholesalers', 'Retailers', 'Exporters', 'Resellers'];
 
   return (
     <div className="space-y-4">
@@ -432,6 +523,30 @@ function AddListingForm({ onSave, onCancel }: { onSave: (l: Omit<Listing, 'id' |
         </Field>
         <Field label="Notes (optional)">
           <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Pick-up 7-11 AM" />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <Field label="Target buyers (optional)">
+          <div className="flex flex-wrap gap-2">
+            {SEGMENTS.map((seg) => {
+              const active = (form.targets || []).includes(seg);
+              return (
+                <button
+                  type="button"
+                  key={seg}
+                  onClick={() => {
+                    const cur = new Set(form.targets || []);
+                    if (cur.has(seg)) cur.delete(seg); else cur.add(seg);
+                    setForm({ ...form, targets: Array.from(cur) });
+                  }}
+                  className={`text-xs px-2 py-1 rounded border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-accent/50'}`}
+                >
+                  {seg}
+                </button>
+              );
+            })}
+          </div>
         </Field>
       </div>
 

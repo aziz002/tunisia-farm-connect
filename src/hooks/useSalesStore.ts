@@ -17,6 +17,8 @@ export interface Listing {
   market: string;
   days: string; // e.g., 'Fri • Sun'
   notes?: string;
+  // Optional target buyer segments for auto-distribution (e.g., Hotels, Restaurants, Wholesalers)
+  targets?: string[];
   createdAt: string; // ISO
 }
 
@@ -30,6 +32,7 @@ export interface BuyerLead {
   email?: string;
   source?: string;
   sourceUrl?: string;
+  channelId?: number; // which channel they came from (if known)
   status: 'Hot' | 'Warm' | 'New';
   createdAt: string;
 }
@@ -48,7 +51,7 @@ export interface Offer {
   createdAt: string;
 }
 
-export type ChannelType = 'Facebook' | 'WhatsApp' | 'Telegram' | 'SoukTN' | 'Instagram';
+export type ChannelType = 'Facebook' | 'WhatsApp' | 'Telegram' | 'SoukTN' | 'Instagram' | 'Retailers' | 'Hotels';
 
 export interface Channel {
   id: number;
@@ -74,6 +77,8 @@ interface SalesState {
   offers: Offer[];
   channels: Channel[];
   postings: Posting[];
+  // Global auto-post setting: when enabled, new listings are automatically posted to enabled channels
+  autoPostEnabled: boolean;
   addListing: (l: Omit<Listing, 'id' | 'createdAt'>) => void;
   removeListing: (id: number) => void;
   addLead: (lead: Omit<BuyerLead, 'id' | 'createdAt'>) => void;
@@ -81,6 +86,8 @@ interface SalesState {
   addChannel: (c: Omit<Channel, 'id' | 'createdAt'>) => void;
   toggleChannel: (id: number, enabled: boolean) => void;
   broadcastListing: (listingId: number, channelIds?: number[]) => void;
+  setAutoPostEnabled: (enabled: boolean) => void;
+  seedChannels: () => void;
   seedDemoData: () => void;
 }
 
@@ -108,11 +115,18 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   offers: (typeof window !== 'undefined' && load<Offer[]>('fh_sales_offers', [])) || [],
   channels: (typeof window !== 'undefined' && load<Channel[]>('fh_sales_channels', [])) || [],
   postings: (typeof window !== 'undefined' && load<Posting[]>('fh_sales_postings', [])) || [],
+  autoPostEnabled: (typeof window !== 'undefined' && load<boolean>('fh_sales_auto_post', true)) || false,
   addListing: (l) => set((s) => {
     const id = Math.max(0, ...s.listings.map((x) => x.id)) + 1;
     const rec: Listing = { ...l, id, createdAt: new Date().toISOString() };
     const next = [...s.listings, rec];
     if (typeof window !== 'undefined') save('fh_sales_listings', next);
+    // If auto-post is enabled, immediately broadcast to enabled channels asynchronously after state update
+    queueMicrotask(() => {
+      if (get().autoPostEnabled) {
+        get().broadcastListing(id);
+      }
+    });
     return { listings: next };
   }),
   removeListing: (id) => set((s) => {
@@ -165,7 +179,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     targets.forEach((c, i) => {
       const delayMs = 800 + i * 400;
       setTimeout(() => {
-        const probability = c.type === 'Facebook' || c.type === 'SoukTN' ? 0.7 : 0.4;
+        let probability = 0.4;
+        if (c.type === 'Facebook' || c.type === 'SoukTN') probability = 0.7;
+        else if (c.type === 'Hotels' || c.type === 'Retailers') probability = 0.6;
         if (Math.random() < probability) {
           const name = ['Mohamed', 'Fatima', 'Karim', 'Amal', 'Sami', 'Noura'][Math.floor(Math.random() * 6)] + ' ' + ['A.', 'B.', 'K.', 'T.', 'D.'][Math.floor(Math.random() * 5)];
           const phone = `+216 ${Math.floor(20 + Math.random()*79)} ${Math.floor(100).toString().padStart(3,'0')} ${Math.floor(1000).toString().padStart(3,'0')}`;
@@ -177,26 +193,47 @@ export const useSalesStore = create<SalesState>((set, get) => ({
             phone,
             source: `${c.type}${c.url ? ' • ' + c.name : ''}`,
             sourceUrl: c.url,
+            channelId: c.id,
             status: 'New',
           });
         }
       }, delayMs);
     });
   },
+  setAutoPostEnabled: (enabled) => set(() => {
+    if (typeof window !== 'undefined') save('fh_sales_auto_post', enabled);
+    return { autoPostEnabled: enabled };
+  }),
+  seedChannels: () => set((s) => {
+    if (s.channels.length) return {} as Partial<SalesState>;
+    const now = new Date().toISOString();
+    const channels: Channel[] = [
+      { id: 1, name: 'Tunisia Agri (Facebook Group)', type: 'Facebook', url: 'https://facebook.com/groups/tunisia-agri', enabled: true, createdAt: now },
+      { id: 2, name: 'Local Buyer Circle (WhatsApp)', type: 'WhatsApp', enabled: true, createdAt: now },
+      { id: 3, name: 'Agri Deals TN (Telegram)', type: 'Telegram', enabled: false, createdAt: now },
+      { id: 4, name: 'SoukTN Marketplace', type: 'SoukTN', url: 'https://souk.tn', enabled: true, createdAt: now },
+      { id: 5, name: 'Tunisia Hotels Procurement', type: 'Hotels', url: 'https://example.com/hotels', enabled: true, createdAt: now },
+      { id: 6, name: 'Retailers Network TN', type: 'Retailers', enabled: true, createdAt: now },
+    ];
+    if (typeof window !== 'undefined') save('fh_sales_channels', channels);
+    return { channels };
+  }),
   seedDemoData: () => set((s) => {
     if (s.listings.length || s.leads.length || s.offers.length) return {} as Partial<SalesState>;
     const now = new Date().toISOString();
     const listings: Listing[] = [
-      { id: 1, type: 'Crop', product: 'Fresh Tomatoes', quantity: 50, qtyUnit: 'kg', priceMin: 3.0, priceMax: 3.8, priceUnit: 'per_kg', city: 'Sousse', market: 'Souk El Jumaa', days: 'Fri • Sun', notes: 'Pick-up 7-11 AM', createdAt: now },
-      { id: 2, type: 'Other', product: 'Olive Oil (extra virgin)', quantity: 20, qtyUnit: 'L', priceMin: 40, priceMax: 48, priceUnit: 'per_liter', city: 'Tunis', market: 'Marché Central', days: 'Sat', notes: 'Bring own containers', createdAt: now },
-      { id: 3, type: 'Other', product: 'Dairy Milk (fresh)', quantity: 80, qtyUnit: 'L', priceMin: 1.8, priceMax: 2.2, priceUnit: 'per_liter', city: 'Nabeul', market: 'Souk Nabeul', days: 'Daily', notes: 'Morning only', createdAt: now },
-      { id: 4, type: 'Crop', product: 'Durum Wheat', quantity: 200, qtyUnit: 'kg', priceMin: 1.0, priceMax: 1.3, priceUnit: 'per_kg', city: 'Kairouan', market: 'Souk Kairouan', days: 'Thu', createdAt: now },
-      { id: 5, type: 'Animal', product: 'Calves (6-8 months)', quantity: 5, qtyUnit: 'head', priceMin: 900, priceMax: 1100, priceUnit: 'total', city: 'Sidi Bouzid', market: 'Weekly Livestock Market', days: 'Mon', createdAt: now },
+      { id: 1, type: 'Crop', product: 'Fresh Tomatoes', quantity: 50, qtyUnit: 'kg', priceMin: 3.0, priceMax: 3.8, priceUnit: 'per_kg', city: 'Sousse', market: 'Souk El Jumaa', days: 'Fri • Sun', notes: 'Pick-up 7-11 AM', targets: ['Restaurants', 'Retailers'], createdAt: now },
+      { id: 2, type: 'Other', product: 'Olive Oil (extra virgin)', quantity: 20, qtyUnit: 'L', priceMin: 40, priceMax: 48, priceUnit: 'per_liter', city: 'Tunis', market: 'Marché Central', days: 'Sat', notes: 'Bring own containers', targets: ['Hotels', 'Exporters'], createdAt: now },
+      { id: 3, type: 'Other', product: 'Dairy Milk (fresh)', quantity: 80, qtyUnit: 'L', priceMin: 1.8, priceMax: 2.2, priceUnit: 'per_liter', city: 'Nabeul', market: 'Souk Nabeul', days: 'Daily', notes: 'Morning only', targets: ['Wholesalers'], createdAt: now },
+      { id: 4, type: 'Crop', product: 'Durum Wheat', quantity: 200, qtyUnit: 'kg', priceMin: 1.0, priceMax: 1.3, priceUnit: 'per_kg', city: 'Kairouan', market: 'Souk Kairouan', days: 'Thu', targets: ['Wholesalers', 'Exporters'], createdAt: now },
+      { id: 5, type: 'Animal', product: 'Calves (6-8 months)', quantity: 5, qtyUnit: 'head', priceMin: 900, priceMax: 1100, priceUnit: 'total', city: 'Sidi Bouzid', market: 'Weekly Livestock Market', days: 'Mon', targets: ['Restaurants', 'Resellers'], createdAt: now },
     ];
     const leads: BuyerLead[] = [
-      { id: 1, name: 'Mohamed K.', region: 'Sousse', product: 'Olive Oil', message: 'Interested in bulk order', phone: '+216 22 111 222', email: 'mohamedk@example.com', source: 'Facebook Group • Tunisia Agri', sourceUrl: 'https://facebook.com/groups/tunisia-agri', status: 'Hot', createdAt: now },
-      { id: 2, name: 'Fatima B.', region: 'Nabeul', product: 'Dairy Milk', message: 'Weekly delivery possible?', phone: '+216 23 333 444', email: 'fatimab@example.com', source: 'WhatsApp • Local Buyer Circle', status: 'Warm', createdAt: now },
-      { id: 3, name: 'Ali T.', region: 'Tunis', product: 'Fresh Tomatoes', message: 'Can you deliver to Tunis?', phone: '+216 55 555 555', email: 'ali.t@example.com', source: 'SoukTN Marketplace', sourceUrl: 'https://souk.tn', status: 'New', createdAt: now },
+      { id: 1, name: 'Mohamed K.', region: 'Sousse', product: 'Olive Oil', message: 'Interested in bulk order', phone: '+216 22 111 222', email: 'mohamedk@example.com', source: 'Facebook Group • Tunisia Agri', sourceUrl: 'https://facebook.com/groups/tunisia-agri', channelId: 1, status: 'Hot', createdAt: now },
+      { id: 2, name: 'Fatima B.', region: 'Nabeul', product: 'Dairy Milk', message: 'Weekly delivery possible?', phone: '+216 23 333 444', email: 'fatimab@example.com', source: 'WhatsApp • Local Buyer Circle', channelId: 2, status: 'Warm', createdAt: now },
+      { id: 3, name: 'Ali T.', region: 'Tunis', product: 'Fresh Tomatoes', message: 'Can you deliver to Tunis?', phone: '+216 55 555 555', email: 'ali.t@example.com', source: 'SoukTN Marketplace', sourceUrl: 'https://souk.tn', channelId: 4, status: 'New', createdAt: now },
+      { id: 4, name: 'Hotel Carthage', region: 'Tunis', product: 'Olive Oil (extra virgin)', message: 'Seeking premium oil for hotel kitchens', phone: '+216 29 777 111', email: 'procurement@carthagehotel.tn', source: 'Hotels • Tunisia Hotels Procurement', channelId: 5, status: 'Warm', createdAt: now },
+      { id: 5, name: 'Retailer Ben Ali', region: 'Sousse', product: 'Fresh Tomatoes', message: 'Weekly retail supply', phone: '+216 50 123 456', source: 'Retailers • Retailers Network TN', channelId: 6, status: 'New', createdAt: now },
     ];
     const offers: Offer[] = [
       { id: 1, market: 'Souk El Jumaa', city: 'Sousse', product: 'Fresh Tomatoes', price: 3.3, priceUnit: 'per_kg', buyer: 'Karim A.', phone: '+216 21 222 333', status: 'new', createdAt: now },
@@ -209,6 +246,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       { id: 2, name: 'Local Buyer Circle (WhatsApp)', type: 'WhatsApp', enabled: true, createdAt: now },
       { id: 3, name: 'Agri Deals TN (Telegram)', type: 'Telegram', enabled: false, createdAt: now },
       { id: 4, name: 'SoukTN Marketplace', type: 'SoukTN', url: 'https://souk.tn', enabled: true, createdAt: now },
+      { id: 5, name: 'Tunisia Hotels Procurement', type: 'Hotels', url: 'https://example.com/hotels', enabled: true, createdAt: now },
+      { id: 6, name: 'Retailers Network TN', type: 'Retailers', enabled: true, createdAt: now },
     ];
     if (typeof window !== 'undefined') {
       save('fh_sales_listings', listings);
@@ -216,7 +255,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       save('fh_sales_offers', offers);
       save('fh_sales_channels', channels);
       save('fh_sales_postings', [] as Posting[]);
+      save('fh_sales_auto_post', true);
     }
-    return { listings, leads, offers, channels, postings: [] };
+    return { listings, leads, offers, channels, postings: [], autoPostEnabled: true };
   }),
 }));
